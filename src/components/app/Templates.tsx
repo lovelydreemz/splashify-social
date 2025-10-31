@@ -131,10 +131,11 @@ export const Templates = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="en">English</SelectItem>
+                <SelectItem value="mr">Marathi (मराठी)</SelectItem>
+                <SelectItem value="hi">Hindi</SelectItem>
                 <SelectItem value="es">Spanish</SelectItem>
                 <SelectItem value="fr">French</SelectItem>
                 <SelectItem value="de">German</SelectItem>
-                <SelectItem value="hi">Hindi</SelectItem>
                 <SelectItem value="ja">Japanese</SelectItem>
                 <SelectItem value="zh">Chinese</SelectItem>
               </SelectContent>
