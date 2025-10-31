@@ -39,7 +39,7 @@ serve(async (req) => {
     // Get all active scheduled posts that are due
     const { data: duePosts, error: fetchError } = await supabaseClient
       .from('scheduled_posts')
-      .select('*, post_templates(*), profiles(*)')
+      .select('*, post_templates(*)')
       .eq('status', 'active')
       .lte('next_post_time', new Date().toISOString());
 
@@ -57,6 +57,18 @@ serve(async (req) => {
 
     for (const scheduledPost of duePosts || []) {
       try {
+        // Fetch profile separately to get Threads credentials
+        const { data: profile } = await supabaseClient
+          .from('profiles')
+          .select('threads_access_token, threads_app_id')
+          .eq('user_id', scheduledPost.user_id)
+          .single();
+
+        if (!profile?.threads_access_token || !profile?.threads_app_id) {
+          console.error("Missing Threads credentials for user:", scheduledPost.user_id);
+          continue;
+        }
+
         let content = scheduledPost.generated_content;
         
         // Generate new content if not already generated
@@ -96,17 +108,17 @@ ${scheduledPost.post_templates.language && scheduledPost.post_templates.language
         }
 
         // Post to Threads
-        if (scheduledPost.profiles?.threads_access_token && scheduledPost.profiles?.threads_app_id) {
+        if (profile.threads_access_token && profile.threads_app_id) {
           // Create container
           const createResponse = await fetch(
-            `https://graph.threads.net/v1.0/${scheduledPost.profiles.threads_app_id}/threads`,
+            `https://graph.threads.net/v1.0/${profile.threads_app_id}/threads`,
             {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 media_type: 'TEXT',
                 text: content,
-                access_token: scheduledPost.profiles.threads_access_token,
+                access_token: profile.threads_access_token,
               }),
             }
           );
@@ -116,13 +128,13 @@ ${scheduledPost.post_templates.language && scheduledPost.post_templates.language
             
             // Publish
             const publishResponse = await fetch(
-              `https://graph.threads.net/v1.0/${scheduledPost.profiles.threads_app_id}/threads_publish`,
+              `https://graph.threads.net/v1.0/${profile.threads_app_id}/threads_publish`,
               {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   creation_id: containerData.id,
-                  access_token: scheduledPost.profiles.threads_access_token,
+                  access_token: profile.threads_access_token,
                 }),
               }
             );
