@@ -6,19 +6,64 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const Auth = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
+  const [signInEmail, setSignInEmail] = useState("");
+  const [signInPassword, setSignInPassword] = useState("");
+  const [signUpName, setSignUpName] = useState("");
+  const [signUpEmail, setSignUpEmail] = useState("");
+  const [signUpPassword, setSignUpPassword] = useState("");
+  const [signUpConfirm, setSignUpConfirm] = useState("");
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    // Authentication logic will be added here
-    setTimeout(() => {
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: signInEmail,
+        password: signInPassword,
+      });
+      if (error) throw error;
+      toast.success("Signed in successfully!");
+      navigate("/app");
+    } catch (error: any) {
+      toast.error(error.message || "Error signing in");
+      console.error(error);
+    } finally {
       setIsLoading(false);
-      // Navigate to main app after auth
-    }, 1500);
+    }
+  };
+
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (signUpPassword !== signUpConfirm) {
+      toast.error("Passwords do not match");
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const { error } = await supabase.auth.signUp({
+        email: signUpEmail,
+        password: signUpPassword,
+        options: {
+          data: {
+            display_name: signUpName,
+          },
+        },
+      });
+      if (error) throw error;
+      toast.success("Account created! Signing you in...");
+      navigate("/app");
+    } catch (error: any) {
+      toast.error(error.message || "Error creating account");
+      console.error(error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -58,7 +103,7 @@ const Auth = () => {
                 </svg>
               </div>
             </div>
-            <CardTitle className="text-3xl font-bold">Welcome to Connect</CardTitle>
+            <CardTitle className="text-3xl font-bold">Splashify Social</CardTitle>
             <CardDescription className="text-base">
               Sign in to your account or create a new one
             </CardDescription>
@@ -71,13 +116,15 @@ const Auth = () => {
               </TabsList>
 
               <TabsContent value="signin">
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleSignIn} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="signin-email">Email</Label>
                     <Input
                       id="signin-email"
                       type="email"
                       placeholder="your@email.com"
+                      value={signInEmail}
+                      onChange={(e) => setSignInEmail(e.target.value)}
                       required
                     />
                   </div>
@@ -87,6 +134,8 @@ const Auth = () => {
                       id="signin-password"
                       type="password"
                       placeholder="••••••••"
+                      value={signInPassword}
+                      onChange={(e) => setSignInPassword(e.target.value)}
                       required
                     />
                   </div>
@@ -101,13 +150,15 @@ const Auth = () => {
               </TabsContent>
 
               <TabsContent value="signup">
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleSignUp} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="signup-name">Full Name</Label>
                     <Input
                       id="signup-name"
                       type="text"
                       placeholder="John Doe"
+                      value={signUpName}
+                      onChange={(e) => setSignUpName(e.target.value)}
                       required
                     />
                   </div>
@@ -117,6 +168,8 @@ const Auth = () => {
                       id="signup-email"
                       type="email"
                       placeholder="your@email.com"
+                      value={signUpEmail}
+                      onChange={(e) => setSignUpEmail(e.target.value)}
                       required
                     />
                   </div>
@@ -126,6 +179,8 @@ const Auth = () => {
                       id="signup-password"
                       type="password"
                       placeholder="••••••••"
+                      value={signUpPassword}
+                      onChange={(e) => setSignUpPassword(e.target.value)}
                       required
                     />
                   </div>
@@ -135,6 +190,8 @@ const Auth = () => {
                       id="signup-confirm"
                       type="password"
                       placeholder="••••••••"
+                      value={signUpConfirm}
+                      onChange={(e) => setSignUpConfirm(e.target.value)}
                       required
                     />
                   </div>

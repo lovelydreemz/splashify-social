@@ -1,1 +1,10 @@
 project_id = "yirbjyysvwnqoquelhcm"
+
+[functions.generate-post]
+verify_jwt = true
+
+[functions.post-to-threads]
+verify_jwt = true
+
+[functions.process-scheduled-posts]
+verify_jwt = false

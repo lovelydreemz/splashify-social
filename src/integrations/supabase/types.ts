@@ -14,7 +14,160 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      post_history: {
+        Row: {
+          content: string
+          error_message: string | null
+          id: string
+          posted_at: string
+          scheduled_post_id: string | null
+          status: string
+          threads_post_id: string | null
+          user_id: string
+        }
+        Insert: {
+          content: string
+          error_message?: string | null
+          id?: string
+          posted_at?: string
+          scheduled_post_id?: string | null
+          status: string
+          threads_post_id?: string | null
+          user_id: string
+        }
+        Update: {
+          content?: string
+          error_message?: string | null
+          id?: string
+          posted_at?: string
+          scheduled_post_id?: string | null
+          status?: string
+          threads_post_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_history_scheduled_post_id_fkey"
+            columns: ["scheduled_post_id"]
+            isOneToOne: false
+            referencedRelation: "scheduled_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      post_templates: {
+        Row: {
+          comment: string
+          created_at: string
+          id: string
+          language: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          comment: string
+          created_at?: string
+          id?: string
+          language?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          comment?: string
+          created_at?: string
+          id?: string
+          language?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          display_name: string | null
+          id: string
+          threads_access_token: string | null
+          threads_app_id: string | null
+          threads_app_secret: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          threads_access_token?: string | null
+          threads_app_id?: string | null
+          threads_app_secret?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          threads_access_token?: string | null
+          threads_app_id?: string | null
+          threads_app_secret?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      scheduled_posts: {
+        Row: {
+          created_at: string
+          generated_content: string | null
+          id: string
+          interval_unit: string
+          interval_value: number
+          last_posted_at: string | null
+          next_post_time: string
+          status: string
+          template_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          generated_content?: string | null
+          id?: string
+          interval_unit: string
+          interval_value: number
+          last_posted_at?: string | null
+          next_post_time: string
+          status?: string
+          template_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          generated_content?: string | null
+          id?: string
+          interval_unit?: string
+          interval_value?: number
+          last_posted_at?: string | null
+          next_post_time?: string
+          status?: string
+          template_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scheduled_posts_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "post_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
