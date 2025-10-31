@@ -63,7 +63,10 @@ export const Settings = () => {
 
       const { error } = await supabase
         .from("profiles")
-        .upsert(updateData);
+        .upsert(updateData, {
+          onConflict: 'user_id',
+          ignoreDuplicates: false
+        });
 
       if (error) throw error;
 
