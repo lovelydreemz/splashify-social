@@ -38,14 +38,14 @@ const Landing = () => {
             </div>
 
             <h1 className="text-5xl md:text-7xl font-bold tracking-tight">
-              Connect with{" "}
+              Automate your{" "}
               <span className="bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent">
-                the world
+                Threads posts
               </span>
             </h1>
 
             <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto">
-              Share your moments, discover amazing content, and connect with people who matter
+              Generate AI-powered posts and schedule them to Threads automatically
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
@@ -76,10 +76,10 @@ const Landing = () => {
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold mb-4">
-              Everything you need to stay connected
+              Everything you need for automated social posting
             </h2>
             <p className="text-xl text-muted-foreground">
-              Built for the modern social experience
+              Built for content creators and social media managers
             </p>
           </div>
 
@@ -87,26 +87,26 @@ const Landing = () => {
             {[
               {
                 icon: Users,
-                title: "Connect",
-                description: "Follow friends and discover new connections",
+                title: "AI Generation",
+                description: "Create engaging posts with AI in any language",
                 gradient: "from-primary to-secondary",
               },
               {
                 icon: Share2,
-                title: "Share",
-                description: "Post photos, videos, and moments instantly",
+                title: "Auto Posting",
+                description: "Schedule posts to go live automatically",
                 gradient: "from-secondary to-accent",
               },
               {
                 icon: Heart,
-                title: "Engage",
-                description: "Like, comment, and interact with content",
+                title: "Multi-Language",
+                description: "Generate content in multiple languages",
                 gradient: "from-accent to-primary",
               },
               {
                 icon: MessageCircle,
-                title: "Chat",
-                description: "Direct message friends and groups",
+                title: "Templates",
+                description: "Reuse templates for consistent posting",
                 gradient: "from-primary to-accent",
               },
             ].map((feature, index) => (
@@ -133,10 +133,10 @@ const Landing = () => {
         <div className="container mx-auto px-4 text-center">
           <div className="max-w-3xl mx-auto space-y-8">
             <h2 className="text-4xl md:text-5xl font-bold">
-              Ready to join the community?
+              Ready to automate your Threads posts?
             </h2>
             <p className="text-xl text-muted-foreground">
-              Start sharing your story today. It's free and always will be.
+              Start creating AI-powered content today. Get started for free.
             </p>
             <Button
               size="lg"
@@ -154,7 +154,7 @@ const Landing = () => {
       {/* Footer */}
       <footer className="py-8 border-t border-border">
         <div className="container mx-auto px-4 text-center text-muted-foreground">
-          <p>© 2024 Connect. Share moments, make memories.</p>
+          <p>© 2024 Splashify Social. Automate your social presence.</p>
         </div>
       </footer>
     </div>
