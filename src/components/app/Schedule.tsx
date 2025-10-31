@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Pause, Play, Trash2 } from "lucide-react";
+import { Pause, Play, Trash2, Send } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 interface Template {
@@ -143,6 +143,41 @@ export const Schedule = () => {
     }
   };
 
+  const handleTestPost = async (scheduledPostId: string) => {
+    setLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      // Check if user has credentials
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("threads_app_id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (!profile?.threads_app_id) {
+        toast.error("Please set up your Threads API credentials in Settings first!");
+        return;
+      }
+
+      // Call the process function manually
+      const { error } = await supabase.functions.invoke('process-scheduled-posts', {
+        body: {}
+      });
+
+      if (error) throw error;
+
+      toast.success("Processing post... Check History tab for results");
+      setTimeout(loadData, 2000); // Refresh after 2 seconds
+    } catch (error: any) {
+      toast.error(error.message || "Error processing post");
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <Card>
@@ -221,6 +256,15 @@ export const Schedule = () => {
                     <Badge variant={post.status === 'active' ? 'default' : 'secondary'}>
                       {post.status}
                     </Badge>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleTestPost(post.id)}
+                      title="Test post now"
+                      disabled={loading}
+                    >
+                      <Send className="h-4 w-4" />
+                    </Button>
                     <Button
                       variant="ghost"
                       size="icon"
