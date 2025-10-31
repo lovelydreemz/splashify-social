@@ -11,6 +11,7 @@ export const Settings = () => {
   const [threadsAppId, setThreadsAppId] = useState("");
   const [threadsAccessToken, setThreadsAccessToken] = useState("");
   const [threadsAppSecret, setThreadsAppSecret] = useState("");
+  const [hasExistingCredentials, setHasExistingCredentials] = useState(false);
 
   useEffect(() => {
     loadProfile();
@@ -21,9 +22,10 @@ export const Settings = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      // Only fetch App ID - never retrieve sensitive credentials
       const { data, error } = await supabase
         .from("profiles")
-        .select("threads_app_id, threads_access_token, threads_app_secret")
+        .select("threads_app_id")
         .eq("user_id", user.id)
         .maybeSingle();
 
@@ -31,8 +33,8 @@ export const Settings = () => {
 
       if (data) {
         setThreadsAppId(data.threads_app_id || "");
-        setThreadsAccessToken(data.threads_access_token || "");
-        setThreadsAppSecret(data.threads_app_secret || "");
+        // Check if credentials exist (app_id is a proxy for having setup)
+        setHasExistingCredentials(!!data.threads_app_id);
       }
     } catch (error) {
       console.error("Error loading profile:", error);
@@ -45,18 +47,31 @@ export const Settings = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
+      // Build update object - only include fields that have values
+      const updateData: any = {
+        user_id: user.id,
+        threads_app_id: threadsAppId,
+      };
+
+      // Only update credentials if user entered new values
+      if (threadsAccessToken.trim()) {
+        updateData.threads_access_token = threadsAccessToken;
+      }
+      if (threadsAppSecret.trim()) {
+        updateData.threads_app_secret = threadsAppSecret;
+      }
+
       const { error } = await supabase
         .from("profiles")
-        .upsert({
-          user_id: user.id,
-          threads_app_id: threadsAppId,
-          threads_access_token: threadsAccessToken,
-          threads_app_secret: threadsAppSecret,
-        });
+        .upsert(updateData);
 
       if (error) throw error;
 
       toast.success("Settings saved successfully!");
+      setHasExistingCredentials(true);
+      // Clear the input fields after successful save
+      setThreadsAccessToken("");
+      setThreadsAppSecret("");
     } catch (error: any) {
       toast.error(error.message || "Error saving settings");
       console.error(error);
@@ -91,8 +106,13 @@ export const Settings = () => {
             type="password"
             value={threadsAccessToken}
             onChange={(e) => setThreadsAccessToken(e.target.value)}
-            placeholder="Enter your access token"
+            placeholder={hasExistingCredentials ? "••••••••  (enter new to update)" : "Enter your access token"}
           />
+          {hasExistingCredentials && (
+            <p className="text-xs text-muted-foreground">
+              Leave blank to keep existing token
+            </p>
+          )}
         </div>
 
         <div className="space-y-2">
@@ -102,8 +122,13 @@ export const Settings = () => {
             type="password"
             value={threadsAppSecret}
             onChange={(e) => setThreadsAppSecret(e.target.value)}
-            placeholder="Enter your app secret"
+            placeholder={hasExistingCredentials ? "••••••••  (enter new to update)" : "Enter your app secret"}
           />
+          {hasExistingCredentials && (
+            <p className="text-xs text-muted-foreground">
+              Leave blank to keep existing secret
+            </p>
+          )}
         </div>
 
         <Button onClick={handleSave} disabled={loading} className="w-full">
