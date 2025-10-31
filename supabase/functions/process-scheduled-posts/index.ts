@@ -58,16 +58,23 @@ serve(async (req) => {
     for (const scheduledPost of duePosts || []) {
       try {
         // Fetch profile separately to get Threads credentials
-        const { data: profile } = await supabaseClient
+        const { data: profile, error: profileError } = await supabaseClient
           .from('profiles')
           .select('threads_access_token, threads_app_id')
           .eq('user_id', scheduledPost.user_id)
           .single();
 
+        if (profileError) {
+          console.error("Error fetching profile for user:", scheduledPost.user_id, profileError);
+          continue;
+        }
+
         if (!profile?.threads_access_token || !profile?.threads_app_id) {
           console.error("Missing Threads credentials for user:", scheduledPost.user_id);
           continue;
         }
+
+        console.log("Processing post for schedule:", scheduledPost.id);
 
         let content = scheduledPost.generated_content;
         
@@ -99,6 +106,10 @@ ${scheduledPost.post_templates.language && scheduledPost.post_templates.language
           if (aiResponse.ok) {
             const aiData = await aiResponse.json();
             content = aiData.choices[0].message.content;
+            console.log("AI generated content:", content);
+          } else {
+            const errorText = await aiResponse.text();
+            console.error("AI generation failed:", errorText);
           }
         }
 
@@ -106,6 +117,8 @@ ${scheduledPost.post_templates.language && scheduledPost.post_templates.language
           console.error("No content available for post:", scheduledPost.id);
           continue;
         }
+
+        console.log("Posting to Threads with content:", content);
 
         // Post to Threads
         if (profile.threads_access_token && profile.threads_app_id) {
@@ -125,6 +138,7 @@ ${scheduledPost.post_templates.language && scheduledPost.post_templates.language
 
           if (createResponse.ok) {
             const containerData = await createResponse.json();
+            console.log("Container created:", containerData.id);
             
             // Publish
             const publishResponse = await fetch(
@@ -193,6 +207,19 @@ ${scheduledPost.post_templates.language && scheduledPost.post_templates.language
 
               results.push({ id: scheduledPost.id, status: 'failed', error: errorText });
             }
+          } else {
+            const createErrorText = await createResponse.text();
+            console.error("Container creation error:", createErrorText);
+            
+            await supabaseClient.from('post_history').insert({
+              user_id: scheduledPost.user_id,
+              scheduled_post_id: scheduledPost.id,
+              content: content,
+              status: 'failed',
+              error_message: `Container creation failed: ${createErrorText}`,
+            });
+
+            results.push({ id: scheduledPost.id, status: 'failed', error: createErrorText });
           }
         }
       } catch (error) {
