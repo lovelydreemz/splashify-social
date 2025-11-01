@@ -3,8 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { LogOut } from "lucide-react";
 import { toast } from "sonner";
+import { Dashboard } from "@/components/app/Dashboard";
 import { Settings } from "@/components/app/Settings";
 import { Templates } from "@/components/app/Templates";
 import { Schedule } from "@/components/app/Schedule";
@@ -13,9 +15,20 @@ import { History } from "@/components/app/History";
 const App = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("dashboard");
 
   useEffect(() => {
     checkAuth();
+
+    // Listen for tab change events from Dashboard
+    const handleTabChange = (event: any) => {
+      setActiveTab(event.detail);
+    };
+    window.addEventListener('changeTab', handleTabChange);
+
+    return () => {
+      window.removeEventListener('changeTab', handleTabChange);
+    };
   }, []);
 
   const checkAuth = async () => {
@@ -46,7 +59,10 @@ const App = () => {
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
-        <p className="text-muted-foreground">Loading...</p>
+        <div className="space-y-4 w-full max-w-md">
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-64 w-full" />
+        </div>
       </div>
     );
   }
@@ -64,13 +80,18 @@ const App = () => {
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        <Tabs defaultValue="templates" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-5 mb-8">
+            <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
             <TabsTrigger value="templates">Templates</TabsTrigger>
             <TabsTrigger value="schedule">Schedule</TabsTrigger>
             <TabsTrigger value="history">History</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="dashboard">
+            <Dashboard />
+          </TabsContent>
 
           <TabsContent value="templates">
             <Templates />
