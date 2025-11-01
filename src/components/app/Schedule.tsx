@@ -34,6 +34,22 @@ export const Schedule = () => {
 
   useEffect(() => {
     loadData();
+
+    // Auto-refresh every 30 seconds
+    const interval = setInterval(loadData, 30000);
+
+    // Refresh when tab becomes visible
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        loadData();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   const loadData = async () => {
