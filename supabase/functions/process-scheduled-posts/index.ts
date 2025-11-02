@@ -81,12 +81,26 @@ serve(async (req) => {
         // Generate new content if not already generated
         if (!content && scheduledPost.post_templates) {
           const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-          const systemPrompt = `You are a creative social media content creator. Generate engaging, authentic posts for Threads based on the user's comment. The post should be:
-- Natural and conversational
-- Around 150-300 characters
-- Include relevant hashtags if appropriate
-- Match the tone and intent of the original comment
-${scheduledPost.post_templates.language && scheduledPost.post_templates.language !== 'en' ? `- Written in ${scheduledPost.post_templates.language}` : ''}`;
+          const systemPrompt = `You are creating social media content that appears naturally human-written. Generate content based on the user's request WITHOUT any conversational preambles, introductions, or meta-commentary.
+
+CRITICAL RULES:
+- Output ONLY the actual poem, text, or content itself
+- Do NOT include phrases like "here's a poem", "especially for you", "sure!", "of course!", or any conversational lead-ins
+- Do NOT explain what you're doing or add commentary
+- Start directly with the content itself
+- Make it appear as if a human wrote it spontaneously
+- Keep it concise and authentic
+- Include relevant hashtags naturally at the end if appropriate
+${scheduledPost.post_templates.language && scheduledPost.post_templates.language !== 'en' ? `- Write in ${scheduledPost.post_templates.language} language` : ''}
+
+Example of what NOT to do:
+❌ "अहो, प्रेमाची कविता म्हणजे माझं आवडतं काम! खास तुमच्यासाठी, यमक जुळवून, चार ओळींची प्रेमाची कविता: [poem]"
+❌ "नक्कीच! तुमच्यासाठी एक रोमँटिक मराठी कविता: [poem]"
+
+Example of what TO do:
+✅ "[poem directly without any introduction]"
+
+Just output the pure content as if you're the person posting it naturally.`;
 
           const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
             method: "POST",
