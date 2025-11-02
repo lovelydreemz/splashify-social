@@ -6,8 +6,9 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Pause, Play, Trash2, Send } from "lucide-react";
+import { Pause, Play, Trash2, Send, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { formatDistanceToNow } from "date-fns";
 
 interface Template {
   id: string;
@@ -194,6 +195,16 @@ export const Schedule = () => {
     }
   };
 
+  const getTimeRemaining = (nextPostTime: string) => {
+    const now = new Date();
+    const nextPost = new Date(nextPostTime);
+    const diffMs = nextPost.getTime() - now.getTime();
+    
+    if (diffMs <= 0) return "Due now";
+    
+    return `in ${formatDistanceToNow(nextPost)}`;
+  };
+
   return (
     <div className="space-y-6">
       <Card>
@@ -303,9 +314,15 @@ export const Schedule = () => {
                 </div>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  Next post: {new Date(post.next_post_time).toLocaleString()}
-                </p>
+                <div className="flex items-center gap-2 text-sm">
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <p className="font-medium">{getTimeRemaining(post.next_post_time)}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(post.next_post_time).toLocaleString()}
+                    </p>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           ))
