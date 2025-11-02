@@ -12,22 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    // Security: Verify service role key (for cron) OR valid user JWT (for manual triggers)
-    const apiKey = req.headers.get('apikey');
-    const authHeader = req.headers.get('Authorization');
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    
-    // Allow if it's the service role key (cron job) or has valid auth (manual trigger)
-    const isServiceRole = apiKey === serviceRoleKey;
-    const hasAuth = authHeader && authHeader.startsWith('Bearer ');
-    
-    if (!isServiceRole && !hasAuth) {
-      console.error("Unauthorized access attempt to process-scheduled-posts");
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
+    console.log("Processing scheduled posts - called by cron job");
 
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
