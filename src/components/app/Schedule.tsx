@@ -207,6 +207,8 @@ export const Schedule = () => {
     const diffMs = nextPost.getTime() - currentTime.getTime();
     
     if (diffMs <= 0) {
+      // Auto-refresh when time is up to get the new schedule
+      setTimeout(() => loadData(), 2000);
       return "Processing...";
     }
     
