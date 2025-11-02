@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,6 +33,7 @@ export const Schedule = () => {
   const [intervalValue, setIntervalValue] = useState("1");
   const [intervalUnit, setIntervalUnit] = useState("hours");
   const [currentTime, setCurrentTime] = useState(new Date());
+  const refreshScheduledRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     loadData();
@@ -202,13 +203,19 @@ export const Schedule = () => {
     }
   };
 
-  const getTimeRemaining = (nextPostTime: string) => {
+  const getTimeRemaining = (nextPostTime: string, postId: string) => {
     const nextPost = new Date(nextPostTime);
     const diffMs = nextPost.getTime() - currentTime.getTime();
     
     if (diffMs <= 0) {
-      // Auto-refresh when time is up to get the new schedule
-      setTimeout(() => loadData(), 2000);
+      // Schedule a refresh only once per post
+      if (!refreshScheduledRef.current.has(postId)) {
+        refreshScheduledRef.current.add(postId);
+        setTimeout(() => {
+          loadData();
+          refreshScheduledRef.current.delete(postId);
+        }, 3000);
+      }
       return "Processing...";
     }
     
@@ -340,7 +347,7 @@ export const Schedule = () => {
                 <div className="flex items-center gap-2 text-sm">
                   <Clock className="h-4 w-4 text-muted-foreground" />
                   <div>
-                    <p className="font-medium">{getTimeRemaining(post.next_post_time)}</p>
+                    <p className="font-medium">{getTimeRemaining(post.next_post_time, post.id)}</p>
                     <p className="text-xs text-muted-foreground">
                       {new Date(post.next_post_time).toLocaleString()}
                     </p>
