@@ -32,12 +32,18 @@ export const Schedule = () => {
   const [selectedTemplate, setSelectedTemplate] = useState("");
   const [intervalValue, setIntervalValue] = useState("1");
   const [intervalUnit, setIntervalUnit] = useState("hours");
+  const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
     loadData();
 
     // Auto-refresh every 30 seconds
-    const interval = setInterval(loadData, 30000);
+    const dataInterval = setInterval(loadData, 30000);
+
+    // Update countdown every second
+    const countdownInterval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
 
     // Refresh when tab becomes visible
     const handleVisibilityChange = () => {
@@ -48,7 +54,8 @@ export const Schedule = () => {
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
-      clearInterval(interval);
+      clearInterval(dataInterval);
+      clearInterval(countdownInterval);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
@@ -196,13 +203,27 @@ export const Schedule = () => {
   };
 
   const getTimeRemaining = (nextPostTime: string) => {
-    const now = new Date();
     const nextPost = new Date(nextPostTime);
-    const diffMs = nextPost.getTime() - now.getTime();
+    const diffMs = nextPost.getTime() - currentTime.getTime();
     
-    if (diffMs <= 0) return "Due now";
+    if (diffMs <= 0) {
+      return "Processing...";
+    }
     
-    return `in ${formatDistanceToNow(nextPost)}`;
+    const seconds = Math.floor(diffMs / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+    
+    if (days > 0) {
+      return `${days}d ${hours % 24}h ${minutes % 60}m`;
+    } else if (hours > 0) {
+      return `${hours}h ${minutes % 60}m ${seconds % 60}s`;
+    } else if (minutes > 0) {
+      return `${minutes}m ${seconds % 60}s`;
+    } else {
+      return `${seconds}s`;
+    }
   };
 
   return (
