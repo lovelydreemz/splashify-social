@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { Pause, Play, Trash2, Send, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { formatDistanceToNow } from "date-fns";
+import { PlatformSelector } from "./PlatformSelector";
 
 interface Template {
   id: string;
@@ -22,6 +22,7 @@ interface ScheduledPost {
   interval_unit: string;
   next_post_time: string;
   status: string;
+  platforms: any; // Use any since it's Json from database
   post_templates: { title: string };
 }
 
@@ -34,6 +35,16 @@ export const Schedule = () => {
   const [intervalUnit, setIntervalUnit] = useState("hours");
   const [currentTime, setCurrentTime] = useState(new Date());
   const refreshScheduledRef = useRef<Set<string>>(new Set());
+  const [platforms, setPlatforms] = useState({
+    threads: true,
+    linkedin: false,
+    instagram: false,
+  });
+  const [platformContent, setPlatformContent] = useState<{
+    threads?: string;
+    linkedin?: string;
+    instagram?: string;
+  }>({});
 
   useEffect(() => {
     loadData();
@@ -89,6 +100,11 @@ export const Schedule = () => {
       return;
     }
 
+    if (!platforms.threads && !platforms.linkedin && !platforms.instagram) {
+      toast.error("Please select at least one platform");
+      return;
+    }
+
     setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -116,6 +132,8 @@ export const Schedule = () => {
         interval_unit: intervalUnit,
         next_post_time: nextPostTime.toISOString(),
         status: 'active',
+        platforms: platforms,
+        platform_content: platformContent,
       });
 
       if (error) throw error;
@@ -124,6 +142,8 @@ export const Schedule = () => {
       setSelectedTemplate("");
       setIntervalValue("1");
       setIntervalUnit("hours");
+      setPlatforms({ threads: true, linkedin: false, instagram: false });
+      setPlatformContent({});
       loadData();
     } catch (error: any) {
       toast.error(error.message || "Error scheduling post");
@@ -288,6 +308,13 @@ export const Schedule = () => {
             </div>
           </div>
 
+          <PlatformSelector
+            platforms={platforms}
+            onPlatformsChange={setPlatforms}
+            content={platformContent}
+            onContentChange={setPlatformContent}
+          />
+
           <Button onClick={handleSchedule} disabled={loading} className="w-full">
             {loading ? "Scheduling..." : "Schedule Posts"}
           </Button>
@@ -308,6 +335,11 @@ export const Schedule = () => {
                     <CardDescription>
                       Every {post.interval_value} {post.interval_unit}
                     </CardDescription>
+                    <div className="flex gap-2 mt-2">
+                      {post.platforms?.threads && <Badge variant="outline">Threads</Badge>}
+                      {post.platforms?.linkedin && <Badge variant="outline">LinkedIn</Badge>}
+                      {post.platforms?.instagram && <Badge variant="outline">Instagram</Badge>}
+                    </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge variant={post.status === 'active' ? 'default' : 'secondary'}>

@@ -42,10 +42,10 @@ serve(async (req) => {
 
     for (const scheduledPost of duePosts || []) {
       try {
-        // Fetch profile separately to get Threads credentials
+        // Fetch profile with all platform credentials
         const { data: profile, error: profileError } = await supabaseClient
           .from('profiles')
-          .select('threads_access_token, threads_app_id')
+          .select('threads_access_token, threads_app_id, linkedin_access_token, instagram_access_token, instagram_user_id')
           .eq('user_id', scheduledPost.user_id)
           .single();
 
@@ -54,19 +54,28 @@ serve(async (req) => {
           continue;
         }
 
-        if (!profile?.threads_access_token || !profile?.threads_app_id) {
-          console.error("Missing Threads credentials for user:", scheduledPost.user_id);
-          continue;
-        }
-
         console.log("Processing post for schedule:", scheduledPost.id);
 
-        let content = scheduledPost.generated_content;
-        
-        // Generate new content if not already generated
-        if (!content && scheduledPost.post_templates) {
-          const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-          const systemPrompt = `You are creating social media content that appears naturally human-written. Generate content based on the user's request WITHOUT any conversational preambles, introductions, or meta-commentary.
+        // Parse platforms configuration
+        const platforms = scheduledPost.platforms || { threads: true, linkedin: false, instagram: false };
+        const platformContent = scheduledPost.platform_content || {};
+
+        // Generate AI content if needed
+        const generateContent = async (platform: string) => {
+          // Check if platform-specific content exists
+          if (platformContent[platform]) {
+            return platformContent[platform];
+          }
+
+          // Check if generated content exists
+          if (scheduledPost.generated_content) {
+            return scheduledPost.generated_content;
+          }
+
+          // Generate new content
+          if (scheduledPost.post_templates) {
+            const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+            const systemPrompt = `You are creating social media content that appears naturally human-written. Generate content based on the user's request WITHOUT any conversational preambles, introductions, or meta-commentary.
 
 CRITICAL RULES:
 - Output ONLY the actual poem, text, or content itself
@@ -78,152 +87,312 @@ CRITICAL RULES:
 - Include relevant hashtags naturally at the end if appropriate
 ${scheduledPost.post_templates.language && scheduledPost.post_templates.language !== 'en' ? `- Write in ${scheduledPost.post_templates.language} language` : ''}
 
-Example of what NOT to do:
-❌ "अहो, प्रेमाची कविता म्हणजे माझं आवडतं काम! खास तुमच्यासाठी, यमक जुळवून, चार ओळींची प्रेमाची कविता: [poem]"
-❌ "नक्कीच! तुमच्यासाठी एक रोमँटिक मराठी कविता: [poem]"
-
-Example of what TO do:
-✅ "[poem directly without any introduction]"
-
 Just output the pure content as if you're the person posting it naturally.`;
 
-          const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${LOVABLE_API_KEY}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              model: "google/gemini-2.5-flash",
-              messages: [
-                { role: "system", content: systemPrompt },
-                { role: "user", content: scheduledPost.post_templates.comment }
-              ],
-            }),
-          });
-
-          if (aiResponse.ok) {
-            const aiData = await aiResponse.json();
-            content = aiData.choices[0].message.content;
-            console.log("AI generated content:", content);
-          } else {
-            const errorText = await aiResponse.text();
-            console.error("AI generation failed:", errorText);
-          }
-        }
-
-        if (!content) {
-          console.error("No content available for post:", scheduledPost.id);
-          continue;
-        }
-
-        console.log("Posting to Threads with content:", content);
-
-        // Post to Threads
-        if (profile.threads_access_token && profile.threads_app_id) {
-          // Create container
-          const createResponse = await fetch(
-            `https://graph.threads.net/v1.0/${profile.threads_app_id}/threads`,
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+            const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${LOVABLE_API_KEY}`,
+                "Content-Type": "application/json",
+              },
               body: JSON.stringify({
-                media_type: 'TEXT',
-                text: content,
-                access_token: profile.threads_access_token,
+                model: "google/gemini-2.5-flash",
+                messages: [
+                  { role: "system", content: systemPrompt },
+                  { role: "user", content: scheduledPost.post_templates.comment }
+                ],
               }),
-            }
-          );
-
-          if (createResponse.ok) {
-            const containerData = await createResponse.json();
-            console.log("Container created:", containerData.id);
-            
-            // Publish
-            const publishResponse = await fetch(
-              `https://graph.threads.net/v1.0/${profile.threads_app_id}/threads_publish`,
-              {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  creation_id: containerData.id,
-                  access_token: profile.threads_access_token,
-                }),
-              }
-            );
-
-            if (publishResponse.ok) {
-              const publishData = await publishResponse.json();
-              
-              // Record in history
-              await supabaseClient.from('post_history').insert({
-                user_id: scheduledPost.user_id,
-                scheduled_post_id: scheduledPost.id,
-                content: content,
-                threads_post_id: publishData.id,
-                status: 'success',
-              });
-
-              // Calculate next post time
-              const nextTime = new Date();
-              const intervalValue = scheduledPost.interval_value;
-              
-              switch (scheduledPost.interval_unit) {
-                case 'minutes':
-                  nextTime.setMinutes(nextTime.getMinutes() + intervalValue);
-                  break;
-                case 'hours':
-                  nextTime.setHours(nextTime.getHours() + intervalValue);
-                  break;
-                case 'days':
-                  nextTime.setDate(nextTime.getDate() + intervalValue);
-                  break;
-              }
-
-              // Update scheduled post
-              await supabaseClient
-                .from('scheduled_posts')
-                .update({
-                  last_posted_at: new Date().toISOString(),
-                  next_post_time: nextTime.toISOString(),
-                  generated_content: null, // Clear for next generation
-                })
-                .eq('id', scheduledPost.id);
-
-              results.push({ id: scheduledPost.id, status: 'success' });
-              console.log("Successfully posted:", scheduledPost.id);
-            } else {
-              const errorText = await publishResponse.text();
-              console.error("Publish error:", errorText);
-              
-              await supabaseClient.from('post_history').insert({
-                user_id: scheduledPost.user_id,
-                scheduled_post_id: scheduledPost.id,
-                content: content,
-                status: 'failed',
-                error_message: errorText,
-              });
-
-              results.push({ id: scheduledPost.id, status: 'failed', error: errorText });
-            }
-          } else {
-            const createErrorText = await createResponse.text();
-            console.error("Container creation error:", createErrorText);
-            
-            await supabaseClient.from('post_history').insert({
-              user_id: scheduledPost.user_id,
-              scheduled_post_id: scheduledPost.id,
-              content: content,
-              status: 'failed',
-              error_message: `Container creation failed: ${createErrorText}`,
             });
 
-            results.push({ id: scheduledPost.id, status: 'failed', error: createErrorText });
+            if (aiResponse.ok) {
+              const aiData = await aiResponse.json();
+              const content = aiData.choices[0].message.content;
+              console.log("AI generated content:", content);
+              return content;
+            } else {
+              const errorText = await aiResponse.text();
+              console.error("AI generation failed:", errorText);
+              return null;
+            }
+          }
+          return null;
+        };
+
+        let postSuccessful = false;
+        const platformResults: any[] = [];
+
+        // Post to Threads
+        if (platforms.threads && profile.threads_access_token && profile.threads_app_id) {
+          try {
+            const content = await generateContent('threads');
+            if (content) {
+              console.log("Posting to Threads...");
+              
+              const createResponse = await fetch(
+                `https://graph.threads.net/v1.0/${profile.threads_app_id}/threads`,
+                {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    media_type: 'TEXT',
+                    text: content,
+                    access_token: profile.threads_access_token,
+                  }),
+                }
+              );
+
+              if (createResponse.ok) {
+                const containerData = await createResponse.json();
+                console.log("Threads container created:", containerData.id);
+                
+                // Wait 4 seconds before publishing
+                await new Promise(resolve => setTimeout(resolve, 4000));
+                
+                const publishResponse = await fetch(
+                  `https://graph.threads.net/v1.0/${profile.threads_app_id}/threads_publish`,
+                  {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      creation_id: containerData.id,
+                      access_token: profile.threads_access_token,
+                    }),
+                  }
+                );
+
+                if (publishResponse.ok) {
+                  const publishData = await publishResponse.json();
+                  
+                  await supabaseClient.from('post_history').insert({
+                    user_id: scheduledPost.user_id,
+                    scheduled_post_id: scheduledPost.id,
+                    content: content,
+                    threads_post_id: publishData.id,
+                    platform: 'threads',
+                    status: 'success',
+                  });
+
+                  platformResults.push({ platform: 'threads', status: 'success' });
+                  postSuccessful = true;
+                  console.log("Threads post successful");
+                } else {
+                  const errorText = await publishResponse.text();
+                  console.error("Threads publish error:", errorText);
+                  
+                  await supabaseClient.from('post_history').insert({
+                    user_id: scheduledPost.user_id,
+                    scheduled_post_id: scheduledPost.id,
+                    content: content,
+                    platform: 'threads',
+                    status: 'failed',
+                    error_message: errorText,
+                  });
+
+                  platformResults.push({ platform: 'threads', status: 'failed', error: errorText });
+                }
+              }
+            }
+          } catch (error) {
+            console.error("Threads posting error:", error);
+            platformResults.push({ platform: 'threads', status: 'failed', error: error instanceof Error ? error.message : 'Unknown error' });
           }
         }
+
+        // Post to LinkedIn
+        if (platforms.linkedin && profile.linkedin_access_token) {
+          try {
+            const content = await generateContent('linkedin');
+            if (content) {
+              console.log("Posting to LinkedIn...");
+              
+              // Get user info
+              const userInfoResponse = await fetch('https://api.linkedin.com/v2/userinfo', {
+                headers: {
+                  'Authorization': `Bearer ${profile.linkedin_access_token}`,
+                },
+              });
+
+              if (userInfoResponse.ok) {
+                const userInfo = await userInfoResponse.json();
+                const personUrn = `urn:li:person:${userInfo.sub}`;
+
+                const postResponse = await fetch('https://api.linkedin.com/v2/ugcPosts', {
+                  method: 'POST',
+                  headers: {
+                    'Authorization': `Bearer ${profile.linkedin_access_token}`,
+                    'Content-Type': 'application/json',
+                    'X-Restli-Protocol-Version': '2.0.0',
+                  },
+                  body: JSON.stringify({
+                    author: personUrn,
+                    lifecycleState: 'PUBLISHED',
+                    specificContent: {
+                      'com.linkedin.ugc.ShareContent': {
+                        shareCommentary: {
+                          text: content,
+                        },
+                        shareMediaCategory: 'NONE',
+                      },
+                    },
+                    visibility: {
+                      'com.linkedin.ugc.MemberNetworkVisibility': 'PUBLIC',
+                    },
+                  }),
+                });
+
+                if (postResponse.ok) {
+                  const postData = await postResponse.json();
+                  
+                  await supabaseClient.from('post_history').insert({
+                    user_id: scheduledPost.user_id,
+                    scheduled_post_id: scheduledPost.id,
+                    content: content,
+                    platform: 'linkedin',
+                    status: 'success',
+                  });
+
+                  platformResults.push({ platform: 'linkedin', status: 'success' });
+                  postSuccessful = true;
+                  console.log("LinkedIn post successful");
+                } else {
+                  const errorText = await postResponse.text();
+                  console.error("LinkedIn post error:", errorText);
+                  
+                  await supabaseClient.from('post_history').insert({
+                    user_id: scheduledPost.user_id,
+                    scheduled_post_id: scheduledPost.id,
+                    content: content,
+                    platform: 'linkedin',
+                    status: 'failed',
+                    error_message: errorText,
+                  });
+
+                  platformResults.push({ platform: 'linkedin', status: 'failed', error: errorText });
+                }
+              }
+            }
+          } catch (error) {
+            console.error("LinkedIn posting error:", error);
+            platformResults.push({ platform: 'linkedin', status: 'failed', error: error instanceof Error ? error.message : 'Unknown error' });
+          }
+        }
+
+        // Post to Instagram
+        if (platforms.instagram && profile.instagram_access_token && profile.instagram_user_id) {
+          try {
+            const content = await generateContent('instagram');
+            if (content) {
+              console.log("Posting to Instagram...");
+              
+              const createResponse = await fetch(
+                `https://graph.instagram.com/v21.0/${profile.instagram_user_id}/media`,
+                {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    media_type: 'TEXT',
+                    text: content,
+                    access_token: profile.instagram_access_token,
+                  }),
+                }
+              );
+
+              if (createResponse.ok) {
+                const containerData = await createResponse.json();
+                console.log("Instagram container created:", containerData.id);
+                
+                // Wait 4 seconds before publishing
+                await new Promise(resolve => setTimeout(resolve, 4000));
+                
+                const publishResponse = await fetch(
+                  `https://graph.instagram.com/v21.0/${profile.instagram_user_id}/media_publish`,
+                  {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      creation_id: containerData.id,
+                      access_token: profile.instagram_access_token,
+                    }),
+                  }
+                );
+
+                if (publishResponse.ok) {
+                  const publishData = await publishResponse.json();
+                  
+                  await supabaseClient.from('post_history').insert({
+                    user_id: scheduledPost.user_id,
+                    scheduled_post_id: scheduledPost.id,
+                    content: content,
+                    platform: 'instagram',
+                    status: 'success',
+                  });
+
+                  platformResults.push({ platform: 'instagram', status: 'success' });
+                  postSuccessful = true;
+                  console.log("Instagram post successful");
+                } else {
+                  const errorText = await publishResponse.text();
+                  console.error("Instagram publish error:", errorText);
+                  
+                  await supabaseClient.from('post_history').insert({
+                    user_id: scheduledPost.user_id,
+                    scheduled_post_id: scheduledPost.id,
+                    content: content,
+                    platform: 'instagram',
+                    status: 'failed',
+                    error_message: errorText,
+                  });
+
+                  platformResults.push({ platform: 'instagram', status: 'failed', error: errorText });
+                }
+              }
+            }
+          } catch (error) {
+            console.error("Instagram posting error:", error);
+            platformResults.push({ platform: 'instagram', status: 'failed', error: error instanceof Error ? error.message : 'Unknown error' });
+          }
+        }
+
+        // Update scheduled post for next run if at least one platform succeeded
+        if (postSuccessful) {
+          const nextTime = new Date();
+          const intervalValue = scheduledPost.interval_value;
+          
+          switch (scheduledPost.interval_unit) {
+            case 'minutes':
+              nextTime.setMinutes(nextTime.getMinutes() + intervalValue);
+              break;
+            case 'hours':
+              nextTime.setHours(nextTime.getHours() + intervalValue);
+              break;
+            case 'days':
+              nextTime.setDate(nextTime.getDate() + intervalValue);
+              break;
+          }
+
+          await supabaseClient
+            .from('scheduled_posts')
+            .update({
+              last_posted_at: new Date().toISOString(),
+              next_post_time: nextTime.toISOString(),
+              generated_content: null,
+            })
+            .eq('id', scheduledPost.id);
+        }
+
+        results.push({
+          id: scheduledPost.id,
+          platformResults,
+          overallStatus: postSuccessful ? 'success' : 'failed'
+        });
+
       } catch (error) {
         console.error("Error processing post:", scheduledPost.id, error);
-        results.push({ id: scheduledPost.id, status: 'failed', error: error instanceof Error ? error.message : 'Unknown error' });
+        results.push({
+          id: scheduledPost.id,
+          status: 'failed',
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
       }
     }
 
