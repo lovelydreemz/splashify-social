@@ -93,6 +93,9 @@ serve(async (req) => {
 
     console.log("Container created:", creationId);
 
+    // Wait 2 seconds before publishing to ensure container is ready
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
     // Step 2: Publish the container
     const publishResponse = await fetch(
       `https://graph.threads.net/v1.0/${profile.threads_app_id}/threads_publish`,
