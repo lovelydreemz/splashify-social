@@ -19,6 +19,7 @@ export type Database = {
           content: string
           error_message: string | null
           id: string
+          platform: string | null
           posted_at: string
           scheduled_post_id: string | null
           status: string
@@ -29,6 +30,7 @@ export type Database = {
           content: string
           error_message?: string | null
           id?: string
+          platform?: string | null
           posted_at?: string
           scheduled_post_id?: string | null
           status: string
@@ -39,6 +41,7 @@ export type Database = {
           content?: string
           error_message?: string | null
           id?: string
+          platform?: string | null
           posted_at?: string
           scheduled_post_id?: string | null
           status?: string
@@ -90,6 +93,9 @@ export type Database = {
           created_at: string
           display_name: string | null
           id: string
+          instagram_access_token: string | null
+          instagram_user_id: string | null
+          linkedin_access_token: string | null
           threads_access_token: string | null
           threads_app_id: string | null
           threads_app_secret: string | null
@@ -100,6 +106,9 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id?: string
+          instagram_access_token?: string | null
+          instagram_user_id?: string | null
+          linkedin_access_token?: string | null
           threads_access_token?: string | null
           threads_app_id?: string | null
           threads_app_secret?: string | null
@@ -110,6 +119,9 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id?: string
+          instagram_access_token?: string | null
+          instagram_user_id?: string | null
+          linkedin_access_token?: string | null
           threads_access_token?: string | null
           threads_app_id?: string | null
           threads_app_secret?: string | null
@@ -127,6 +139,8 @@ export type Database = {
           interval_value: number
           last_posted_at: string | null
           next_post_time: string
+          platform_content: Json | null
+          platforms: Json | null
           status: string
           template_id: string | null
           updated_at: string
@@ -140,6 +154,8 @@ export type Database = {
           interval_value: number
           last_posted_at?: string | null
           next_post_time: string
+          platform_content?: Json | null
+          platforms?: Json | null
           status?: string
           template_id?: string | null
           updated_at?: string
@@ -153,6 +169,8 @@ export type Database = {
           interval_value?: number
           last_posted_at?: string | null
           next_post_time?: string
+          platform_content?: Json | null
+          platforms?: Json | null
           status?: string
           template_id?: string | null
           updated_at?: string
