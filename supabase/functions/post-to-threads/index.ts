@@ -89,12 +89,21 @@ serve(async (req) => {
     }
 
     const containerData = await createContainerResponse.json();
+    
+    if (!containerData.id) {
+      console.error("No container ID returned:", containerData);
+      return new Response(JSON.stringify({ error: "Failed to create container", details: containerData }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    
     const creationId = containerData.id;
-
     console.log("Container created:", creationId);
 
-    // Wait 2 seconds before publishing to ensure container is ready
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    // Wait 4 seconds before publishing to ensure container is fully ready on Threads servers
+    console.log("Waiting 4 seconds before publishing...");
+    await new Promise(resolve => setTimeout(resolve, 4000));
 
     // Step 2: Publish the container
     const publishResponse = await fetch(

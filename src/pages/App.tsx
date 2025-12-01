@@ -31,13 +31,15 @@ const App = () => {
     }
 
     // Listen for tab change events from Dashboard
-    const handleTabChange = (event: any) => {
-      handleTabChange(event.detail);
+    const handleTabChangeEvent = (event: CustomEvent) => {
+      if (event.detail) {
+        handleTabChange(event.detail);
+      }
     };
-    window.addEventListener('changeTab', handleTabChange);
+    window.addEventListener('changeTab', handleTabChangeEvent as EventListener);
 
     return () => {
-      window.removeEventListener('changeTab', handleTabChange);
+      window.removeEventListener('changeTab', handleTabChangeEvent as EventListener);
     };
   }, []);
 
